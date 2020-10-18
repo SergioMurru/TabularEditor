@@ -55,6 +55,10 @@ namespace TabularEditor
         [STAThread]
         static void Main()
         {
+#if DEBUG
+            System.Diagnostics.Debugger.Launch();
+#endif
+
             ConsoleHandler.RedirectToParent();
             AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
 
