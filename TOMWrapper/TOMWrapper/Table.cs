@@ -357,6 +357,41 @@ namespace TabularEditor.TOMWrapper
             return FolderCache[""].GetChildrenByFolders();
         }
 
+        static partial void InitMetadata(TOM.Table metadataObject, Model parent)
+        {
+            if (metadataObject.Partitions.Count > 0) return;
+
+            var modelHasStructuredDataSources = parent.DataSources.Any(ds => ds.Type == DataSourceType.Structured);
+            var modelHasPowerQueryPartitions = parent.Tables.Any(t => t.Partitions.Any(p => p.SourceType == PartitionSourceType.M));
+            var modelHasProviderDataSources = parent.DataSources.Any(ds => ds.Type == DataSourceType.Provider);
+
+            // Ensure the table is initialized with a single partition. If the model does not contain any Provider data sources, the type
+            // of partition added to the table is determind by the following logic:
+            if (parent.Handler.CompatibilityLevel >= 1400 && !modelHasProviderDataSources
+                && (modelHasStructuredDataSources || modelHasPowerQueryPartitions || parent.Handler.Settings.UsePowerQueryPartitionsByDefault)
+                )
+            {
+                var tomPartition = new TOM.Partition
+                {
+                    Name = metadataObject.Name,
+                    Source = new TOM.MPartitionSource()
+                };
+                metadataObject.Partitions.Add(tomPartition);
+            }
+            else
+            {
+                var tomPartition = new TOM.Partition
+                {
+                    Name = metadataObject.Name
+                };
+                var qps = new TOM.QueryPartitionSource();
+                tomPartition.Source = qps;
+                if (!parent.DataSources.Any(ds => ds.Type == DataSourceType.Provider)) parent.AddDataSource();
+                qps.DataSource = parent.DataSources.FirstOrDefault(ds => ds.Type == DataSourceType.Provider).MetadataObject;
+                metadataObject.Partitions.Add(tomPartition);
+            }
+        }
+
         protected override void Init()
         {
             RowLevelSecurity = new TableRLSIndexer(this);
