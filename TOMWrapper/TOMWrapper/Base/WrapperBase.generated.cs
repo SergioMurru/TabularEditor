@@ -156,6 +156,7 @@ namespace TabularEditor.TOMWrapper
 	    public const string STRUCTUREMODIFIEDTIME = "StructureModifiedTime";
 	    public const string SUMMARIZATION = "Summarization";
 	    public const string SUMMARIZEBY = "SummarizeBy";
+	    public const string SYSTEMMANAGED = "SystemManaged";
 	    public const string TABLE = "Table";
 	    public const string TABLEDETAILPOSITION = "TableDetailPosition";
 	    public const string TABLEPERMISSIONS = "TablePermissions";
@@ -242,6 +243,7 @@ namespace TabularEditor.TOMWrapper
             typeof(CalculationItem),
             typeof(TablePermission),
 	        typeof(MPartition),
+            typeof(EntityPartition),
 			typeof(CalculatedTable),
 			typeof(CalculationGroupTable)
         };
@@ -411,6 +413,7 @@ namespace TabularEditor.TOMWrapper
 	public enum SecurityFilteringBehavior {    
         OneDirection = 1,
         BothDirections = 2,
+        None = 3,
 	}
 	/// <summary>
 ///             When joining two date time columns, indicates whether to join on date and time parts or on date part only.
@@ -9970,6 +9973,7 @@ namespace TabularEditor.TOMWrapper
 		private Partition CreateFromMetadata(TOM.Partition obj)
 		{
 			if(obj.SourceType == TOM.PartitionSourceType.M) return MPartition.CreateFromMetadata(Table, obj);
+            else if(obj.SourceType == TOM.PartitionSourceType.Entity) return EntityPartition.CreateFromMetadata(Table, obj);
 			else return Partition.CreateFromMetadata(Table, obj);
 		    return null;
 		}
@@ -11263,7 +11267,7 @@ namespace TabularEditor.TOMWrapper
 ///             A string used to open the connection to the data source.
 ///             </summary>
 		[DisplayName("Connection String")]
-		[Category("Connection Details"),Description(@"A string used to open the connection to the data source."),IntelliSense(@"A string used to open the connection to the data source.")][Editor(typeof(CustomDialogEditor), typeof(System.Drawing.Design.UITypeEditor))]
+		[Category("Connection Details"),Description(@"A string used to open the connection to the data source."),IntelliSense(@"A string used to open the connection to the data source.")][Editor(typeof(CustomDialogEditor), typeof(System.Drawing.Design.UITypeEditor)),TypeConverter(typeof(ConnectionStringConverter))]
 		public string ConnectionString {
 			get {
 			    return MetadataObject.ConnectionString;
@@ -12908,6 +12912,30 @@ namespace TabularEditor.TOMWrapper
 			}
 		}
 		private bool ShouldSerializeSourceLineageTag() { return false; }
+/// <summary>
+///             A boolean value that indicates whether the table is managed by the system. The system takes ownership of creation and deletion of such tables.
+///             </summary><remarks>This property is only supported when the compatibility level of the database is at 1562 or above.</remarks>
+		[DisplayName("System Managed")]
+		[Category("Options"),Description(@"A boolean value that indicates whether the table is managed by the system. The system takes ownership of creation and deletion of such tables."),IntelliSense(@"A boolean value that indicates whether the table is managed by the system. The system takes ownership of creation and deletion of such tables.")]
+		public bool SystemManaged {
+			get {
+			    return MetadataObject.SystemManaged;
+			}
+			set {
+				
+				var oldValue = SystemManaged;
+				var newValue = value;
+				if (oldValue == newValue) return;
+				bool undoable = true;
+				bool cancel = false;
+				OnPropertyChanging(Properties.SYSTEMMANAGED, newValue, ref undoable, ref cancel);
+				if (cancel) return;
+				if (!MetadataObject.IsRemoved) MetadataObject.SystemManaged = newValue;
+				if(undoable) Handler.UndoManager.Add(new UndoPropertyChangedAction(this, Properties.SYSTEMMANAGED, oldValue, newValue));
+				OnPropertyChanged(Properties.SYSTEMMANAGED, oldValue, newValue);
+			}
+		}
+		private bool ShouldSerializeSystemManaged() { return false; }
 
         /// <Summary>
 		/// Collection of perspectives in which this Table is visible.
@@ -13162,6 +13190,8 @@ namespace TabularEditor.TOMWrapper
 					return Handler.PbiMode ? Handler.CompatibilityLevel >= 1200 : Handler.CompatibilityLevel >= 1400;
 				case Properties.SOURCELINEAGETAG:
 					return Handler.PbiMode ? Handler.CompatibilityLevel >= 1550 : Handler.CompatibilityLevel >= 1550;
+				case Properties.SYSTEMMANAGED:
+					return Handler.PbiMode ? Handler.CompatibilityLevel >= 1562 : Handler.CompatibilityLevel >= 1562;
 				case Properties.PARENT:
 					return false;
 				
@@ -13351,6 +13381,18 @@ namespace TabularEditor.TOMWrapper
 				if(Handler == null) return;
 				Handler.UndoManager.BeginBatch(UndoPropertyChangedAction.GetActionNameFromProperty("SourceLineageTag"));
 				this.ToList().ForEach(item => { item.SourceLineageTag = value; });
+				Handler.UndoManager.EndBatch();
+			}
+		}
+		/// <summary>
+		/// Sets the SystemManaged property of all objects in the collection at once.
+		/// </summary>
+		[Description("Sets the SystemManaged property of all objects in the collection at once.")]
+		public bool SystemManaged {
+			set {
+				if(Handler == null) return;
+				Handler.UndoManager.BeginBatch(UndoPropertyChangedAction.GetActionNameFromProperty("SystemManaged"));
+				this.ToList().ForEach(item => { item.SystemManaged = value; });
 				Handler.UndoManager.EndBatch();
 			}
 		}

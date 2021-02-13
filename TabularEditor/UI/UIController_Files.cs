@@ -51,6 +51,8 @@ namespace TabularEditor.UI
 
                     if (!cancel)
                     {
+                        TabularModelHandler.Cleanup();
+                        if (oldHandler != null && File_SaveMode == ModelSourceType.Database) oldHandler.OnExternalChange -= Handler_OnExternalChange;
                         File_Current = Handler.Source;
                         File_Directory = FileSystemHelper.DirectoryFromPath(Handler.Source);
                         File_SaveMode = Handler.SourceType;
@@ -87,7 +89,9 @@ namespace TabularEditor.UI
         {
             var newModelDialog = new NewModelDialog();
             if (newModelDialog.ShowDialog() == DialogResult.Cancel) return;
-            
+
+            TabularModelHandler.Cleanup();
+            if (Handler != null && File_SaveMode == ModelSourceType.Database) Handler.OnExternalChange -= Handler_OnExternalChange;
             Handler = new TabularModelHandler(newModelDialog.CompatibilityLevel, Preferences.Current.GetSettings(), newModelDialog.PbiDatasetModel);
             File_Current = null;
             File_Directory = null;
@@ -317,12 +321,21 @@ namespace TabularEditor.UI
 
                         try
                         {
+                            var orgDbName = Handler.Database.Name;
+                            var orgDbId = Handler.Database.ID;
+                            if (LocalInstanceType == EmbeddedInstanceType.PowerBI && LocalInstanceName.StartsWith("localhost") && Guid.TryParse(orgDbName, out _))
+                            {
+                                Handler.Database.Name = LocalInstanceName.Split('.').Skip(1).FirstOrDefault()?.Replace(".","_") ?? Handler.Database.Name;
+                                //Handler.Database.ID = Handler.Database.Name;
+                            }
                             Handler.Save(dialog.FileName,
                                 saveFormat,
                                 serializationOptions,
                                 dialog.UseSerializationFromAnnotations,
                                 resetCheckPoint,
                                 restoreSerializationOptions);
+                            Handler.Database.Name = orgDbName;
+                            Handler.Database.Name = orgDbId;
 
                             RecentFiles.Add(dialog.FileName);
                             RecentFiles.Save();

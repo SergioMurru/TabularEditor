@@ -111,8 +111,13 @@ namespace TabularEditor.UIServices
             }
 
             var tds = TypedDataSource.GetFromTabularDs(partition.DataSource as ProviderDataSource);
-
-            var schemaTable = tds.GetSchemaTable(partition.Query);
+            var query = partition.Query;
+            if (partition.CheckFlag(TE_ADDFALSECRITERIA) || partition.Table.CheckFlag(TE_ADDFALSECRITERIA) || 
+                (partition.DataSource != null && partition.DataSource.CheckFlag(TE_ADDFALSECRITERIA)))
+            {
+                query = query + " WHERE 1 = 0";
+            }
+            var schemaTable = tds.GetSchemaTable(query);
             if (schemaTable == null)
             {
                 return null;
@@ -146,17 +151,21 @@ namespace TabularEditor.UIServices
             return sourceSchema;
         }
 
+        public const string TE_NOWARN = "TabularEditor_SchemaCheckNoWarnings";
+        public const string TE_SKIPCHECK_TYPO = "TabularEditor_SkipSkemaCheck"; // For backwards compatibility because of a typo...
+        public const string TE_SKIPCHECK = "TabularEditor_SkipSchemaCheck";
+        public const string TE_IGNOREADDED = "TabularEditor_IgnoreSourceColumnAdded";
+        public const string TE_IGNORETYPES = "TabularEditor_IgnoreDataTypeChange";
+        public const string TE_IGNOREREMOVED = "TabularEditor_IgnoreMissingSourceColumn";
+        public const string TE_ADDFALSECRITERIA = "TabularEditor_AddFalseWhereClause";
+
         public static List<MetadataChange> GetChanges(Partition partition)
         {
-            const string TE_SKIPCHECK = "TabularEditor_SkipSkemaCheck";
-            const string TE_IGNOREADDED = "TabularEditor_IgnoreSourceColumnAdded";
-            const string TE_IGNORETYPES = "TabularEditor_IgnoreDataTypeChange";
-            const string TE_IGNOREREMOVED = "TabularEditor_IgnoreMissingSourceColumn";
 
             var result = new List<MetadataChange>();
             var table = partition.Table;
 
-            if (table.CheckFlag(TE_SKIPCHECK)) return result;
+            if (table.CheckFlag(TE_SKIPCHECK) || table.CheckFlag(TE_SKIPCHECK_TYPO)) return result;
 
             var sourceSchema = GetSourceSchema(partition);
             if(sourceSchema == null)
