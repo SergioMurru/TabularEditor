@@ -223,11 +223,11 @@ namespace TabularEditor.TOMWrapper
         private List<CalculatedTableColumn> _originForCalculatedTableColumnsCache;
 
         /// <summary>
-        /// A collection of columns that make up a composite key for the current column.
+        /// A collection of columns that should be grouped together with this column when used in visuals (RelatedColumnDetails).
         /// </summary>
         [NoMultiselect(), Editor(typeof(ColumnSetCollectionEditor), typeof(UITypeEditor)), Category("Options"), DisplayName("Group By Columns")]
-        [IntelliSense("A collection of columns that make up a composite key for the current column.")]
-        [Description("A collection of columns that make up a composite key for the current column.")]
+        [IntelliSense("A collection of columns that should be grouped together with this column when used in visuals (RelatedColumnDetails).")]
+        [Description("A collection of columns that should be grouped together with this column when used in visuals (RelatedColumnDetails).")]
         public GroupingColumnCollection GroupByColumns { get; private set; }
 
         protected override void OnPropertyChanging(string propertyName, object newValue, ref bool undoable, ref bool cancel)
@@ -241,6 +241,12 @@ namespace TabularEditor.TOMWrapper
                 _originForCalculatedTableColumnsCache = OriginForCalculatedTableColumns.ToList();
                 if (Handler.Settings.AutoFixup || _originForCalculatedTableColumnsCache.Count > 0) Handler.BeginUpdate("Set Property 'Name'");
             }
+
+            if (propertyName == Properties.FORMATSTRING)
+            {
+                Handler.BeginUpdate("Set Property 'Format String'");
+            }
+
             base.OnPropertyChanging(propertyName, newValue, ref undoable, ref cancel);
         }
 
@@ -281,6 +287,14 @@ namespace TabularEditor.TOMWrapper
                 if (rels.Count > 1) Handler.Tree.EndUpdate();
             }
 
+            if (propertyName == Properties.FORMATSTRING)
+            {
+                Handler.PowerBIGovernance.SuspendGovernance();
+                RemoveAnnotation("Format", true);
+                Handler.PowerBIGovernance.ResumeGovernance();
+                Handler.EndUpdate();
+            }
+
             base.OnPropertyChanged(propertyName, oldValue, newValue);
         }
 
@@ -297,7 +311,7 @@ namespace TabularEditor.TOMWrapper
             }
         }
 
-        [Browsable(true), Category("Metadata"), DisplayName("DAX identifier")]
+        [Browsable(true), Category("Metadata"), DisplayName("DAX Identifier")]
         public string DaxObjectFullName
         {
             get
@@ -318,7 +332,7 @@ namespace TabularEditor.TOMWrapper
         [Browsable(false)]
         public string DaxTableName
         {
-            get { return Table.DaxTableName; }
+            get { return Table?.DaxTableName ?? ""; }
         }
 
     }

@@ -66,7 +66,7 @@ namespace TabularEditor.UI
             {
                 Actions.Add(new Separator());
                 ScriptEngine.AddCustomActions?.Invoke(Actions);
-                UI.StatusExLabel.Text = string.Format("Succesfully loaded {0} custom action{1}. Compilation took {2} seconds.",
+                UI.StatusExLabel.Text = string.Format("Successfully loaded {0} custom action{1}. Compilation took {2} seconds.",
                     ScriptEngine.CustomActionCount, ScriptEngine.CustomActionCount == 1 ? "" : "s", ScriptEngine.CustomActionCompiletime / 1000m);
             } else
             {
@@ -240,7 +240,12 @@ namespace TabularEditor.UI
         private void Tree_UpdateComplete(object sender, EventArgs e)
         {
             UI.TreeView.Invalidate();
-            UI.PropertyGrid.Refresh();
+            if (UI.PropertyGrid.SelectedObjects.OfType<ITabularObject>().Any(to => to.IsRemoved))
+            {
+                UI.PropertyGrid.SelectedObject = null;
+            }
+            else
+                UI.PropertyGrid.Refresh();
 
             InvokeBPABackground();
 
@@ -378,7 +383,7 @@ namespace TabularEditor.UI
             {
                 UI.FormMain.Text = string.Format("{0}{1} - {2}",
                     Handler.IsConnected ? (
-                        string.IsNullOrEmpty(LocalInstanceName) ? Handler.Source : LocalInstanceName
+                        LocalInstance?.Type == LocalInstanceType.PowerBI ? $"{LocalInstance.Name}.pbix (localhost:{LocalInstance.Port})" : Handler.Source
                         ) : (File_Current ?? "(Unsaved model)"),
                     Handler.HasUnsavedChanges ? "*" : "", appName);
 
